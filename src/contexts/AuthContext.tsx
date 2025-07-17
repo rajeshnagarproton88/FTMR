@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase'; // Make sure this path is correct
 import { Session, User } from '@supabase/supabase-js';
+import toast from 'react-hot-toast'; // Import toast for notifications
 
 // Define the shape of the context value
 interface AuthContextType {
@@ -59,7 +60,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        // If Supabase returns an error, throw it to be caught by the catch block
+        throw error;
+      }
+      // On successful sign out, the onAuthStateChange listener will automatically
+      // update the user state to null, triggering a redirect.
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to sign out.');
+    }
   };
 
   const value = {
