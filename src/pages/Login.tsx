@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, User, Lock } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -14,85 +14,91 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
 
-    const success = await login(username, password);
-    if (success) {
-      navigate('/');
+    try {
+      const { error } = await login(email, password);
+      if (error) {
+        throw error;
+      }
+      toast.success('Signed in successfully!');
+      navigate('/'); // Redirect to the dashboard after login
+    } catch (error: any) {
+      // Check for the specific Supabase auth error and show a custom message
+      if (error.message === 'Invalid login credentials') {
+        toast.error('Invalid username or password');
+      } else {
+        toast.error(error.message || 'Failed to sign in.');
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-            <LogIn className="w-8 h-8 text-blue-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
-          <p className="text-gray-600 mt-2">Sign in to your Finance Manager account</p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Welcome Back</h1>
+          <p className="mt-2 text-gray-600">Sign in to your Finance Manager account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Username
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-gray-700"
+            >
+              Email Address
             </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="Enter your username"
-                required
-              />
-            </div>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder="you@example.com"
+            />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-gray-700"
+            >
               Password
             </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder="••••••••"
+            />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400"
+            >
+              {loading ? 'Signing In...' : 'Sign In'}
+            </button>
+          </div>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
-              Sign up
-            </Link>
-          </p>
-        </div>
-
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
-          <p className="text-xs text-gray-500">Username: admin | Password: admin</p>
-          <p className="text-xs text-orange-600 mt-1">Running in Demo Mode (localStorage)</p>
-        </div>
+        <p className="text-sm text-center text-gray-600">
+          Don't have an account?{' '}
+          <Link to="/register" className="font-medium text-blue-600 hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

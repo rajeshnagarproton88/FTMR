@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // Import the Supabase client we created
-// import { supabase } from '../lib/supabase'; // Make sure the path is correct
+// import { supabase } from '../lib/supabase';h  // Make sure the path is correct
 
 function FinanceManager() {
   // State for the list of expenses from the database
