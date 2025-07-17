@@ -22,9 +22,13 @@ const Login: React.FC = () => {
       toast.success('Signed in successfully!');
       navigate('/'); // Redirect to the dashboard after login
     } catch (error: any) {
-      // Check for the specific Supabase auth error and show a custom message
+      // Check for specific error messages to provide better user feedback
       if (error.message === 'Invalid login credentials') {
-        toast.error('Invalid username or password');
+        toast.error('Invalid email or password.');
+      } else if (error.message === 'Email not confirmed') {
+        toast.error('Please check your inbox and confirm your email address before logging in.');
+      } else if (error.message === 'Your account has not been approved by an administrator.') {
+        toast.error('Your account is pending approval by an administrator.');
       } else {
         toast.error(error.message || 'Failed to sign in.');
       }
@@ -98,6 +102,10 @@ const Login: React.FC = () => {
           <Link to="/register" className="font-medium text-blue-600 hover:underline">
             Sign up
           </Link>
+        </p>
+
+        <p className="text-xs text-center text-gray-500 mt-4">
+          Note: Your account will need to be approved by an administrator before you can log in.
         </p>
       </div>
     </div>
