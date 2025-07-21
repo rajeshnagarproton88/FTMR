@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { DemoStorage } from '../lib/demoStorage';
 import { User } from '../types';
-import { Shield, Users, UserCheck, UserX, Eye, MoreVertical } from 'lucide-react';
+import { Shield, Users, UserCheck, UserX, Eye, MoreVertical, Key, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,9 @@ const Admin: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -77,6 +80,43 @@ const Admin: React.FC = () => {
     setActiveDropdown(null);
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      toast.error('Password must be at least 4 characters long');
+      return;
+    }
+
+    try {
+      if (isDemoMode) {
+        const users = DemoStorage.getUsers();
+        const updatedUsers = users.map((u: any) => 
+          u.id === user?.id ? { ...u, password: newPassword } : u
+        );
+        DemoStorage.saveUsers(updatedUsers);
+      } else {
+        // In production, this would use Supabase auth password update
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+        if (error) throw error;
+      }
+
+      toast.success('Admin password updated successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordForm(false);
+    } catch (error) {
+      console.error('Error updating password:', error);
+      toast.error('Failed to update password');
+    }
+  };
   if (user?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-64">
@@ -108,6 +148,79 @@ const Admin: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Admin Settings</h2>
+            <p className="text-sm text-gray-600">Manage your admin account settings</p>
+          </div>
+          <button
+            onClick={() => setShowPasswordForm(!showPasswordForm)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
+          >
+            <Key className="w-4 h-4 mr-2" />
+            Change Password
+          </button>
+        </div>
+
+        {/* Password Change Form */}
+        {showPasswordForm && (
+          <div className="mt-6 border-t pt-6">
+            <form onSubmit={handlePasswordChange} className="max-w-md">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter new password"
+                    required
+                    minLength={4}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Confirm new password"
+                    required
+                    minLength={4}
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Update Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      setNewPassword('');
+                      setConfirmPassword('');
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">

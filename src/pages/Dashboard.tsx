@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';  // Assuming supabase client is here
-import { DashboardStats, Reminder } from '../types'; // Assuming types are defined
-import { CreditCard, CheckSquare, Calculator, Bell, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { supabase } from '../lib/supabase';
+import { DemoStorage } from '../lib/demoStorage';
+import { DashboardStats, Reminder } from '../types';
+import { CreditCard, CheckSquare, Calculator, Bell, TrendingUp, AlertCircle } from 'lucide-react';
+import { format, isToday } from 'date-fns';
 
 const Dashboard: React.FC = () => {
-  // We no longer need `isDemoMode` from the context
-  const { user } = useAuth(); 
+  const { user, isDemoMode } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalExpensesLast30Days: 0,
     pendingTodos: 0,
@@ -17,7 +17,6 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // The effect will run when the user object is available
     if (user) {
       loadDashboardData();
     }
@@ -27,52 +26,71 @@ const Dashboard: React.FC = () => {
     if (!user) return;
 
     try {
-      // --- This block is now the ONLY data source, directly from Supabase ---
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      if (isDemoMode) {
+        // Demo mode stats
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // Fetch expenses from the last 30 days
-      const { data: expenses } = await supabase
-        .from('expenses')
-        .select('amount')
-        .eq('user_id', user.id)
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        const expenses = DemoStorage.getExpenses(user.id);
+        const recentExpenses = expenses.filter((expense: any) => 
+          new Date(expense.created_at) >= thirtyDaysAgo
+        );
+        const totalExpenses = recentExpenses.reduce((sum: number, expense: any) => sum + expense.amount, 0);
 
-      const totalExpenses = expenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0;
+        const todos = DemoStorage.getTodos(user.id);
+        const pendingTodos = todos.filter((todo: any) => !todo.completed);
 
-      // Fetch pending todos
-      const { data: todos } = await supabase
-        .from('todos')
-        .select('id', { count: 'exact' }) // More efficient way to get count
-        .eq('user_id', user.id)
-        .eq('completed', false);
+        const reminders = DemoStorage.getReminders(user.id);
+        const today = new Date().toISOString().split('T')[0];
+        const todayReminders = reminders.filter((reminder: any) => 
+          reminder.reminder_date.startsWith(today)
+        );
 
-      // Fetch active EMIs
-      const { data: emis } = await supabase
-        .from('emis')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id);
-        // Add more conditions if needed to determine "active" status
+        setStats({
+          totalExpensesLast30Days: totalExpenses,
+          pendingTodos: pendingTodos.length,
+          activeEmis: 0, // Not implemented in demo
+          todayReminders: todayReminders,
+        });
+      } else {
+        // Supabase stats
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      // Fetch today's reminders
-      const today = new Date();
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-      const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .eq('user_id', user.id)
+          .gte('created_at', thirtyDaysAgo.toISOString());
 
-      const { data: reminders } = await supabase
-        .from('reminders')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('reminder_date', startOfToday)
-        .lte('reminder_date', endOfToday);
+        const totalExpenses = expenses?.reduce((sum, expense) => sum + expense.amount, 0) || 0;
 
-      setStats({
-        totalExpensesLast30Days: totalExpenses,
-        pendingTodos: todos?.length || 0,
-        activeEmis: emis?.length || 0,
-        todayReminders: reminders || [],
-      });
-      
+        const { data: todos } = await supabase
+          .from('todos')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('completed', false);
+
+        const { data: emis } = await supabase
+          .from('emis')
+          .select('id')
+          .eq('user_id', user.id);
+
+        const today = new Date().toISOString().split('T')[0];
+        const { data: reminders } = await supabase
+          .from('reminders')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('reminder_date', today)
+          .lt('reminder_date', today + 'T23:59:59');
+
+        setStats({
+          totalExpensesLast30Days: totalExpenses,
+          pendingTodos: todos?.length || 0,
+          activeEmis: emis?.length || 0,
+          todayReminders: reminders || [],
+        });
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -123,7 +141,7 @@ const Dashboard: React.FC = () => {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.email}!</p>
+        <p className="text-gray-600 mt-2">Welcome back, {user?.username}!</p>
       </div>
 
       {/* Stats Grid */}
